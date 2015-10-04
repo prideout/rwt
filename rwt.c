@@ -1,5 +1,6 @@
 #include "rwt.h"
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
