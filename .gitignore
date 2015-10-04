@@ -1,2 +1,3 @@
 *.xml
 _build
+.DS_Store
