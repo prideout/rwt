@@ -1,5 +1,0 @@
-alias init="cmake -H. -B_build"
-alias build="cmake --build _build"
-alias run="_build/testrwt"
-alias debug="lldb _build/testrwt"
-alias clean="rm -rf _build"
