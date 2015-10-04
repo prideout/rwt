@@ -1,6 +1,0 @@
-language: c
-script:
-    - cmake --version
-    - cmake -H. -B_build
-    - cmake --build _build
-    - _build/testrwt
