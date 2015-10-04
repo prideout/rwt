@@ -17,6 +17,7 @@ def process(el):
     for tile in tiles:
         cols = [int(c.text) for c in tile.find('edgeColors').iter('int')]
         print cols
+        assert(len(cols) == 4)
         result += struct.pack('bbbb', *cols)
         samples = [s for s in tile.find('distribution').iter('PoissonSample')]
         result += struct.pack('i', len(samples))
