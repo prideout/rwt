@@ -9,7 +9,7 @@
 
 	If you use this software for research purposes, please cite
 	the aforementioned paper in any resulting publication.
-	
+
 	You can find updated versions and other supplementary materials
 	on our homepage:
 	http://graphics.uni-konstanz.de/publications/2006/blue_noise
@@ -81,9 +81,5 @@ void fwritef(FILE * fOut, float f);
 void fwritei(FILE * fOut, int i);
 void fwriteui(FILE * fOut, unsigned int ui);
 void fwriteuc(FILE * fOut, unsigned char ui);
-
-// time
-void initTime();
-float getTime();
 
 #endif

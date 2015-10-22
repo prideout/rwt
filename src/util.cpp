@@ -9,13 +9,12 @@
 
 	If you use this software for research purposes, please cite
 	the aforementioned paper in any resulting publication.
-	
+
 	You can find updated versions and other supplementary materials
 	on our homepage:
 	http://graphics.uni-konstanz.de/publications/2006/blue_noise
 */
 
-#include <windows.h>
 #include <iostream>
 #include "util.h"
 
@@ -27,7 +26,6 @@ void error(const char * szErrorString, ...)
 	vsprintf(cpBuffer, szErrorString, tArgPtr);
 
 	std::cout << cpBuffer << std::endl;
-	MessageBoxA(NULL, (LPCSTR)cpBuffer, (LPCSTR)"ERROR", MB_OK|MB_ICONEXCLAMATION);
 	exit(0);
 }
 
@@ -123,29 +121,4 @@ void fwriteui(FILE * fOut, unsigned int ui)
 void fwriteuc(FILE * fOut, unsigned char uc)
 {
 	fwrite(&uc, sizeof(unsigned char), 1, fOut);
-}
-
-// time
-float fTimerRateInv;			// 1 / (ticks per second)
-__int64 i64StartTick;
-
-void initTime()
-{
-	__int64 i64TimerRate;
-	if(!QueryPerformanceFrequency((LARGE_INTEGER *) &i64TimerRate))
-		error("ERROR: can't initialize timer");
-
-	if(!i64TimerRate)
-		error("ERROR: can't initialize timer");
-
-	fTimerRateInv= 1.0f / i64TimerRate;
-	if(!QueryPerformanceCounter((LARGE_INTEGER *) &i64StartTick))
-		error("ERROR: can't initialize timer");
-}
-
-float getTime()
-{
-	__int64 i64CurTick;
-	QueryPerformanceCounter((LARGE_INTEGER *) &i64CurTick);
-	return (i64CurTick-i64StartTick)*fTimerRateInv;
 }

@@ -9,15 +9,17 @@
 
 	If you use this software for research purposes, please cite
 	the aforementioned paper in any resulting publication.
-	
+
 	You can find updated versions and other supplementary materials
 	on our homepage:
 	http://graphics.uni-konstanz.de/publications/2006/blue_noise
 */
 
-#include <IL/il.h>
-#include "../../source/util.h"
-#include "../../source/geometry.h"
+#include "util.h"
+#include "geometry.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 struct Tile
 {
@@ -106,13 +108,11 @@ void paintPoints()
 	clipMaxY = vpos.y+vpos.z;
 	numPoints = 0;
 
-	float startTime = getTime();
-
 	int numTests = mini((int)tiles[0].numPoints, int(powf(vpos.z, -2.f)*toneScale));
 	float factor = 1.f/powf(vpos.z, -2)/toneScale;
 	for (int i = 0; i < numTests; i++)
 	{
-		float px = tiles[0].points[i].x, py = tiles[0].points[i].y; 
+		float px = tiles[0].points[i].x, py = tiles[0].points[i].y;
 
 		// skip point if it lies outside of the clipping window
 		if ((px < clipMinX) || (px > clipMaxX) || (py < clipMinY) || (py > clipMaxY))
@@ -131,29 +131,24 @@ void paintPoints()
 	// recursion
 	recurseTile(tiles[0], 0, 0, 0);
 
-	float endTime = getTime();
-
-	printf("%d points in %.2f ms = %.0f points/s\n", numPoints, (endTime-startTime)*1000, numPoints/(endTime-startTime));
+	printf("%d points\n", numPoints);
 }
 
 void savePoints(const char * fileName)
 {
 	FILE * fout = fopen(fileName, "wb");
-	
 	fwritei(fout, numPoints);
 	for (int i = 0; i < numPoints; i++)
 	{
 		fwritef(fout, points[i].x);
 		fwritef(fout, points[i].y);
 	}
-	
 	fclose(fout);
 }
 
 void loadTileSet(const char * fileName)
 {
 	FILE * fin = fopen(fileName, "rb");
-	
 	numTiles = freadi(fin);
 	numSubtiles = freadi(fin);
 	numSubdivs = freadi(fin);
@@ -194,34 +189,27 @@ void loadTileSet(const char * fileName)
 			freadi(fin);freadi(fin);freadi(fin);freadi(fin);
 		}
 	}
-	
 	fclose(fin);
 }
 
-void main()
+int main()
 {
-	initTime();
-
 	loadTileSet("data/tileset.dat");
 
-	// load density texture
-	ilInit();
-	ilEnable(IL_ORIGIN_SET);
-	ilOriginFunc(IL_ORIGIN_UPPER_LEFT) ;
-	ILuint uiImage;
-	ilGenImages(1, &uiImage);
-	ilBindImage(uiImage);
-	ilLoadImage("data/density.png");
-	densTexSize = ilGetInteger(IL_IMAGE_WIDTH);
-	if (densTexSize != ilGetInteger(IL_IMAGE_HEIGHT))
+	int dims[3];
+	stbi_uc* data = stbi_load("trillium.jpg", &dims[0], &dims[1], &dims[2], 1);
+	printf("%d x %d x %d\n", dims[0], dims[1], dims[2]);
+
+	densTexSize = dims[0];
+	if (densTexSize != dims[1])
 		error("ERROR: only square density maps supported");
-	if (ilGetInteger(IL_IMAGE_BITS_PER_PIXEL) != 8)
+	if (dims[2] != 1)
 		error("ERROR: only grayscale density maps supported");
 
 	densTex = new float[sqri(densTexSize)];
 	for (int i = 0; i < sqri(densTexSize); i++)
-		densTex[i] = 1 - ilGetData()[i]/255.f;
-	ilDeleteImages(1, &uiImage);
+		densTex[i] = 1 - data[i]/255.f;
+	stbi_image_free(data);
 
 	vpos = Vec3(0, 0, 1);
 	paintPoints();
@@ -234,4 +222,5 @@ void main()
 	vpos = Vec3(0.45f, 0.45f, 0.1f);
 	paintPoints();
 	savePoints("data/output_03.points");
+	return 0;
 }
