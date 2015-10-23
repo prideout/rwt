@@ -8,5 +8,4 @@ include_directories(
 add_executable(
     kopf
     src/use_tiles.cpp
-    src/util.cpp
 )

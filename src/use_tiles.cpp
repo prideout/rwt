@@ -15,8 +15,6 @@
     http://graphics.uni-konstanz.de/publications/2006/blue_noise
 */
 
-#include "util.h"
-
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
@@ -26,6 +24,43 @@
 #define MAX_POINTS 1024*1024
 
 #include <math.h>
+
+static int sqri(int a) { return a*a; };
+static int maxi(int a, int b) { if (a < b) return b; else return a; };
+static int mini(int a, int b) { if (a < b) return a; else return b; };
+static int mini(int a, int b, int c) { if (a < b) { if(a < c) return a; else return c; } else { if (b < c) return b; else return c; } };
+static int floori(float a) { return int(floor(a)); };
+
+static int clampi(int x, int min, int max)
+{
+	if (x < min) x = min;
+	if (x > max) x = max;
+	return x;
+}
+
+static int freadi(FILE * fIn)
+{
+	int iTemp;
+	fread(&iTemp, sizeof(int), 1, fIn);
+	return iTemp;
+}
+
+static float freadf(FILE * fIn)
+{
+	float fTemp;
+	fread(&fTemp, sizeof(float), 1, fIn);
+	return fTemp;
+}
+
+static void fwritef(FILE * fOut, float f)
+{
+	fwrite(&f, sizeof(float), 1, fOut);
+}
+
+static void fwritei(FILE * fOut, int i)
+{
+	fwrite(&i, sizeof(int), 1, fOut);
+}
 
 struct Vec2 {
 	Vec2(const Vec2 & v) { x = v.x; y = v.y; };
@@ -96,8 +131,6 @@ static Vec3 vpos;
 // Sample the density texture. By default we use linear filtering here.
 static float sampleDensMap(float x, float y)
 {
-#define SAMPLE_LINEAR
-#ifdef SAMPLE_LINEAR
     float tx = x*densTexSize;
     float ty = y*densTexSize;
     int ix = clampi(floori(tx), 0, densTexSize-2);
@@ -109,11 +142,6 @@ static float sampleDensMap(float x, float y)
                     densTex[(iy+1)*densTexSize+ix]*(1-tx)*ty +
                     densTex[(iy+1)*densTexSize+ix+1]*tx*ty);
     return sample;
-#else
-    int ix = clampi(x*densTexSize, 0, densTexSize-1);
-    int iy = clampi(y*densTexSize, 0, densTexSize-1);
-    return densTex[iy*densTexSize+ix];
-#endif
 }
 
 static void recurseTile(Tile& t, float x, float y, int level)
@@ -227,38 +255,61 @@ static void drawPoints(const char* srcfile, const char* dstfile)
 static void loadTileSet(const char * fileName)
 {
     FILE * fin = fopen(fileName, "rb");
+    FILE * fout = fopen("bluenoise.bin", "wb");
+
     numTiles = freadi(fin);
     numSubtiles = freadi(fin);
     numSubdivs = freadi(fin);
+
+    fwritei(fout, numTiles);
+    fwritei(fout, numSubtiles);
+    fwritei(fout, numSubdivs);
+
     tiles = new Tile[numTiles];
     for (int i = 0; i < numTiles; i++) {
+
         tiles[i].n = freadi(fin);
         tiles[i].e = freadi(fin);
         tiles[i].s = freadi(fin);
         tiles[i].w = freadi(fin);
+
+        fwritei(fout, tiles[i].n);
+        fwritei(fout, tiles[i].e);
+        fwritei(fout, tiles[i].s);
+        fwritei(fout, tiles[i].w);
+
         tiles[i].subdivs = new int * [numSubdivs];
         for (int j = 0; j < numSubdivs; j++) {
             int * subdiv = new int[sqri(numSubtiles)];
-            for (int k = 0; k < sqri(numSubtiles); k++)
+            for (int k = 0; k < sqri(numSubtiles); k++) {
                 subdiv[k] = freadi(fin);
+				fwritei(fout, subdiv[k]);
+			}
             tiles[i].subdivs[j] = subdiv;
         }
         tiles[i].numPoints = freadi(fin);
+		fwritei(fout, tiles[i].numPoints);
         tiles[i].points = new Vec2[tiles[i].numPoints];
         for (int j = 0; j < tiles[i].numPoints; j++) {
             tiles[i].points[j].x = freadf(fin);
             tiles[i].points[j].y = freadf(fin);
+			fwritef(fout, tiles[i].points[j].x);
+			fwritef(fout, tiles[i].points[j].y);
             freadi(fin);freadi(fin);freadi(fin);freadi(fin);
         }
         tiles[i].numSubPoints = freadi(fin);
+		fwritei(fout, tiles[i].numSubPoints);
         tiles[i].subPoints = new Vec2[tiles[i].numSubPoints];
         for (int j = 0; j < tiles[i].numSubPoints; j++) {
             tiles[i].subPoints[j].x = freadf(fin);
             tiles[i].subPoints[j].y = freadf(fin);
+			fwritef(fout, tiles[i].subPoints[j].x);
+			fwritef(fout, tiles[i].subPoints[j].y);
             freadi(fin);freadi(fin);freadi(fin);freadi(fin);
         }
     }
     fclose(fin);
+    fclose(fout);
 }
 
 int main()
@@ -271,7 +322,7 @@ int main()
 
     densTexSize = dims[0];
     if (densTexSize != dims[1]) {
-        error("ERROR: only square density maps supported");
+        printf("ERROR: only square density maps supported\n");
     }
 
     densTex = new float[sqri(densTexSize)];
