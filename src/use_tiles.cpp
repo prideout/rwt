@@ -255,66 +255,42 @@ static void drawPoints(const char* srcfile, const char* dstfile)
 static void loadTileSet(const char * fileName)
 {
     FILE * fin = fopen(fileName, "rb");
-    FILE * fout = fopen("bluenoise.bin", "wb");
-
     numTiles = freadi(fin);
     numSubtiles = freadi(fin);
     numSubdivs = freadi(fin);
-
-    fwritei(fout, numTiles);
-    fwritei(fout, numSubtiles);
-    fwritei(fout, numSubdivs);
-
     tiles = new Tile[numTiles];
     for (int i = 0; i < numTiles; i++) {
-
         tiles[i].n = freadi(fin);
         tiles[i].e = freadi(fin);
         tiles[i].s = freadi(fin);
         tiles[i].w = freadi(fin);
-
-        fwritei(fout, tiles[i].n);
-        fwritei(fout, tiles[i].e);
-        fwritei(fout, tiles[i].s);
-        fwritei(fout, tiles[i].w);
-
         tiles[i].subdivs = new int * [numSubdivs];
         for (int j = 0; j < numSubdivs; j++) {
             int * subdiv = new int[sqri(numSubtiles)];
             for (int k = 0; k < sqri(numSubtiles); k++) {
                 subdiv[k] = freadi(fin);
-				fwritei(fout, subdiv[k]);
 			}
             tiles[i].subdivs[j] = subdiv;
         }
         tiles[i].numPoints = freadi(fin);
-		fwritei(fout, tiles[i].numPoints);
         tiles[i].points = new Vec2[tiles[i].numPoints];
         for (int j = 0; j < tiles[i].numPoints; j++) {
             tiles[i].points[j].x = freadf(fin);
             tiles[i].points[j].y = freadf(fin);
-			fwritef(fout, tiles[i].points[j].x);
-			fwritef(fout, tiles[i].points[j].y);
-            freadi(fin);freadi(fin);freadi(fin);freadi(fin);
         }
         tiles[i].numSubPoints = freadi(fin);
-		fwritei(fout, tiles[i].numSubPoints);
         tiles[i].subPoints = new Vec2[tiles[i].numSubPoints];
         for (int j = 0; j < tiles[i].numSubPoints; j++) {
             tiles[i].subPoints[j].x = freadf(fin);
             tiles[i].subPoints[j].y = freadf(fin);
-			fwritef(fout, tiles[i].subPoints[j].x);
-			fwritef(fout, tiles[i].subPoints[j].y);
-            freadi(fin);freadi(fin);freadi(fin);freadi(fin);
         }
     }
     fclose(fin);
-    fclose(fout);
 }
 
 int main()
 {
-    loadTileSet("tileset_2048.dat");
+    loadTileSet("bluenoise.bin");
 
     int dims[3];
     stbi_uc* data = stbi_load("trillium.jpg", &dims[0], &dims[1], &dims[2], 1);
