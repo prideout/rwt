@@ -7,5 +7,6 @@ include_directories(
 
 add_executable(
     kopf
-    src/use_tiles.cpp
+    src/demo.c
+    src/bluenoise.cpp
 )
