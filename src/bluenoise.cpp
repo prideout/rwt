@@ -1,6 +1,6 @@
 // The MIT License
-// Copyright 2006 Johannes Kopf
-// Rewritten 2015 by Philip Rideout
+// Copyright (c) 2015 Philip Rideout and Johannes Kopf
+// https://github.com/prideout/parg
 //
 // Implementation of the algorithms described in:
 //
@@ -132,21 +132,21 @@ struct Tile {
 };
 
 struct par_bluenoise_context_s {
-	int foo;
+	Vec2* points;
+	Tile* tiles;
+	float toneScale;
+	float clipMinX, clipMaxX, clipMinY, clipMaxY;
+	int numTiles, numSubtiles, numSubdivs;
+	float vpos[3];
+	int numPoints;
+	int densTexSize;
+	float* densTex;
 };
 
-static Vec2* points = new Vec2[MAX_POINTS];
-static Tile* tiles;
-static float toneScale = 200000;
-static float clipMinX, clipMaxX, clipMinY, clipMaxY;
-static int numTiles, numSubtiles, numSubdivs;
-static float vpos[3];
-static int numPoints;
-static int densTexSize;
-static float* densTex = 0;
-
-static float sampleDensMap(float x, float y)
+static float sampleDensMap(par_bluenoise_context* ctx, float x, float y)
 {
+	int densTexSize = ctx->densTexSize;
+	float* densTex = ctx->densTex;
     float tx = x*densTexSize;
     float ty = y*densTexSize;
     int ix = clampi(floori(tx), 0, densTexSize-2);
@@ -160,39 +160,40 @@ static float sampleDensMap(float x, float y)
     return sample;
 }
 
-static void recurseTile(Tile& t, float x, float y, int level)
+static void recurseTile(par_bluenoise_context* ctx, Tile& t, float x, float y, int level)
 {
-    float tileSize = 1.f/powf(float(numSubtiles), float(level));
-    if ((x+tileSize < clipMinX) || (x > clipMaxX) || (y+tileSize < clipMinY) || (y > clipMaxY)) {
+    float tileSize = 1.f/powf(float(ctx->numSubtiles), float(level));
+    if ((x+tileSize < ctx->clipMinX) || (x > ctx->clipMaxX) || (y+tileSize < ctx->clipMinY) || (y > ctx->clipMaxY)) {
         return;
 	}
-    int numTests = mini(t.numSubPoints, int(powf(vpos[2], -2.f)/powf(float(numSubtiles), 2.f*level)*toneScale-t.numPoints));
-    float factor = 1.f/powf(vpos[2], -2.f)*powf(float(numSubtiles), 2.f*level)/toneScale;
+    int numTests = mini(t.numSubPoints, int(powf(ctx->vpos[2], -2.f)/powf(float(ctx->numSubtiles), 2.f*level)*ctx->toneScale-t.numPoints));
+    float factor = 1.f/powf(ctx->vpos[2], -2.f)*powf(float(ctx->numSubtiles), 2.f*level)/ctx->toneScale;
     for (int i = 0; i < numTests; i++) {
         float px = x+t.subPoints[i].x*tileSize, py = y+t.subPoints[i].y*tileSize;
 
         // skip point if it lies outside of the clipping window
-        if ((px < clipMinX) || (px > clipMaxX) || (py < clipMinY) || (py > clipMaxY)) {
+        if ((px < ctx->clipMinX) || (px > ctx->clipMaxX) || (py < ctx->clipMinY) || (py > ctx->clipMaxY)) {
             continue;
         }
 
         // reject point based on its rank
-        if (sampleDensMap(px, py) < (i+t.numPoints)*factor) {
+        if (sampleDensMap(ctx, px, py) < (i+t.numPoints)*factor) {
             continue;
         }
 
-        points[numPoints].x = px;
-        points[numPoints].y = py;
-        numPoints++;
+        ctx->points[ctx->numPoints].x = px;
+        ctx->points[ctx->numPoints].y = py;
+        ctx->numPoints++;
     }
 
     // recursion
-    if (powf(vpos[2], -2.f)/powf(float(numSubtiles), 2.f*level)*toneScale-t.numPoints > t.numSubPoints) {
-        for (int ty = 0; ty < numSubtiles; ty++) {
-            for (int tx = 0; tx < numSubtiles; tx++) {
-				int tileIndex = t.subdivs[0][ty*numSubtiles+tx];
-                Tile& subtile = tiles[tileIndex];
-                recurseTile(subtile, x+tx*tileSize/numSubtiles, y+ty*tileSize/numSubtiles, level+1);
+	const float scale = tileSize / ctx->numSubtiles;
+    if (powf(ctx->vpos[2], -2.f)/powf(float(ctx->numSubtiles), 2.f*level)*ctx->toneScale-t.numPoints > t.numSubPoints) {
+        for (int ty = 0; ty < ctx->numSubtiles; ty++) {
+            for (int tx = 0; tx < ctx->numSubtiles; tx++) {
+				int tileIndex = t.subdivs[0][ty*ctx->numSubtiles+tx];
+                Tile& subtile = ctx->tiles[tileIndex];
+                recurseTile(ctx, subtile, x+tx*scale, y+ty*scale, level+1);
             }
         }
     }
@@ -200,50 +201,44 @@ static void recurseTile(Tile& t, float x, float y, int level)
 
 float* par_bluenoise_generate(par_bluenoise_context* ctx, float x, float y, float z, int* npts)
 {
-    vpos[0] = x;
-    vpos[1] = y;
-    vpos[2] = z;
-    clipMinX = vpos[0];
-    clipMaxX = vpos[0] + vpos[2];
-    clipMinY = vpos[1];
-    clipMaxY = vpos[1] + vpos[2];
-    numPoints = 0;
-    int numTests = mini((int)tiles[0].numPoints, int(powf(vpos[2], -2.f)*toneScale));
-    float factor = 1.f/powf(vpos[2], -2)/toneScale;
+    ctx->vpos[0] = x;
+    ctx->vpos[1] = y;
+    ctx->vpos[2] = z;
+    ctx->clipMinX = x;
+    ctx->clipMaxX = x + z;
+    ctx->clipMinY = y;
+    ctx->clipMaxY = y + z;
+    ctx->numPoints = 0;
+    int numTests = mini((int)ctx->tiles[0].numPoints, int(powf(z, -2.f)*ctx->toneScale));
+    float factor = 1.f/powf(z, -2)/ctx->toneScale;
     for (int i = 0; i < numTests; i++) {
-        float px = tiles[0].points[i].x, py = tiles[0].points[i].y;
-
-        // skip point if it lies outside of the clipping window
-        if ((px < clipMinX) || (px > clipMaxX) || (py < clipMinY) || (py > clipMaxY)) {
+        float px = ctx->tiles[0].points[i].x, py = ctx->tiles[0].points[i].y;
+        if ((px < ctx->clipMinX) || (px > ctx->clipMaxX) || (py < ctx->clipMinY) || (py > ctx->clipMaxY)) {
             continue;
         }
-
-        // reject point based on its rank
-        if (sampleDensMap(px, py) < i*factor) {
+        if (sampleDensMap(ctx, px, py) < i*factor) {
             continue;
         }
-
-        // "draw" point
-        points[numPoints].x = px;
-        points[numPoints].y = py;
-        numPoints++;
+        ctx->points[ctx->numPoints].x = px;
+        ctx->points[ctx->numPoints].y = py;
+        ctx->numPoints++;
     }
-
-    // recursion
-    recurseTile(tiles[0], 0, 0, 0);
-
-	*npts = numPoints;
-	return &points->x;
+    recurseTile(ctx, ctx->tiles[0], 0, 0, 0);
+	*npts = ctx->numPoints;
+	return &ctx->points->x;
 }
 
 par_bluenoise_context* par_bluenoise_create(const char* filepath, int nbytes)
 {
 	par_bluenoise_context* ctx = (par_bluenoise_context*) malloc(sizeof(par_bluenoise_context));
+	ctx->points = new Vec2[MAX_POINTS];
+	ctx->toneScale = 200000;
+	ctx->densTex = 0;
     FILE* fin = fopen(filepath, "rb");
-    numTiles = freadi(fin);
-    numSubtiles = freadi(fin);
-    numSubdivs = freadi(fin);
-    tiles = new Tile[numTiles];
+    int numTiles = ctx->numTiles = freadi(fin);
+    int numSubtiles = ctx->numSubtiles = freadi(fin);
+    int numSubdivs = ctx->numSubdivs = freadi(fin);
+    Tile* tiles = ctx->tiles = new Tile[numTiles];
     for (int i = 0; i < numTiles; i++) {
         tiles[i].n = freadi(fin);
         tiles[i].e = freadi(fin);
@@ -276,14 +271,16 @@ par_bluenoise_context* par_bluenoise_create(const char* filepath, int nbytes)
 
 void par_bluenoise_set_density(par_bluenoise_context* ctx, const unsigned char* pixels, int size)
 {
-    densTexSize = size;
-    densTex = (float*) malloc(sqri(size) * sizeof(float));
+    ctx->densTexSize = size;
+    ctx->densTex = (float*) malloc(sqri(size) * sizeof(float));
 	float scale = 1.0f / 255.0f;
     for (int i = 0; i < sqri(size); i++) {
-        densTex[i] = 1 - pixels[i] * scale;
+        ctx->densTex[i] = 1 - pixels[i] * scale;
 	}
 }
 
 void par_bluenoise_free(par_bluenoise_context* ctx)
 {
+	free(ctx->points);
+	ctx->points = 0;
 }
