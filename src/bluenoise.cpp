@@ -1,25 +1,64 @@
-/*
-    Copyright 2006 Johannes Kopf
-	Rewritten 2015 by Philip Rideout
-
-    Implementation of the algorithms described in:
-
-    Recursive Wang Tiles for Real-Time Blue Noise
-    Johannes Kopf, Daniel Cohen-Or, Oliver Deussen, Dani Lischinski
-    In ACM Transactions on Graphics 25, 3 (Proc. SIGGRAPH 2006)
-
-    If you use this software for research purposes, please cite
-    the aforementioned paper in any resulting publication.
-*/
+// The MIT License
+// Copyright 2006 Johannes Kopf
+// Rewritten 2015 by Philip Rideout
+//
+// Implementation of the algorithms described in:
+//
+// Recursive Wang Tiles for Real-Time Blue Noise
+// Johannes Kopf, Daniel Cohen-Or, Oliver Deussen, Dani Lischinski
+// In ACM Transactions on Graphics 25, 3 (Proc. SIGGRAPH 2006)
+//
+// If you use this software for research purposes, please cite
+// the aforementioned paper in any resulting publication.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 
 extern "C" {
-void par_bluenoise_create(const char * fileName);
-float* par_bluenoise_generate(float x, float y, float z, int* npts);
-void par_bluenoise_set_density(const unsigned char* pixels, int size);
+
+// Encapsulates a tile set and an optional density function.
+typedef struct par_bluenoise_context_s par_bluenoise_context;
+
+// Create a bluenoise context using the given tile set.  The first argument is
+// a filepath if the second argument is 0.  If the second argument is a non-zero
+// byte count, then the first argument is a pointer to an in-memory tile set.
+par_bluenoise_context* par_bluenoise_create(const char* file_or_data,
+	int data_length);
+
+// Free all memory associated with the given blue noise context.
+void par_bluenoise_free(par_bluenoise_context* ctx);
+
+// Copy a grayscale one-byte-per-pixel image into the bluenoise context.
+// Darker regions create a higher number of samples.
+void par_bluenoise_set_density(par_bluenoise_context* ctx,
+	const unsigned char* pixels, int size);
+
+// Generate samples using the Recursive Wang Tiles algorithm.  This is fast!
+// The returner pointer is a set of two-tuples in the [0,1] interval.
+// The caller should not free the returned pointer.  The given xyz values
+// control a square region within the density function.
+float* par_bluenoise_generate(par_bluenoise_context* ctx, float x, float y,
+	float z, int* npts);
+
 }
 
 #define MAX_POINTS 1024*1024
@@ -92,6 +131,10 @@ struct Tile {
     Vec2 * points, * subPoints;
 };
 
+struct par_bluenoise_context_s {
+	int foo;
+};
+
 static Vec2* points = new Vec2[MAX_POINTS];
 static Tile* tiles;
 static float toneScale = 200000;
@@ -155,7 +198,7 @@ static void recurseTile(Tile& t, float x, float y, int level)
     }
 }
 
-float* par_bluenoise_generate(float x, float y, float z, int* npts)
+float* par_bluenoise_generate(par_bluenoise_context* ctx, float x, float y, float z, int* npts)
 {
     vpos[0] = x;
     vpos[1] = y;
@@ -193,9 +236,10 @@ float* par_bluenoise_generate(float x, float y, float z, int* npts)
 	return &points->x;
 }
 
-void par_bluenoise_create(const char * fileName)
+par_bluenoise_context* par_bluenoise_create(const char* filepath, int nbytes)
 {
-    FILE * fin = fopen(fileName, "rb");
+	par_bluenoise_context* ctx = (par_bluenoise_context*) malloc(sizeof(par_bluenoise_context));
+    FILE* fin = fopen(filepath, "rb");
     numTiles = freadi(fin);
     numSubtiles = freadi(fin);
     numSubdivs = freadi(fin);
@@ -227,9 +271,10 @@ void par_bluenoise_create(const char * fileName)
         }
     }
     fclose(fin);
+	return ctx;
 }
 
-void par_bluenoise_set_density(const unsigned char* pixels, int size)
+void par_bluenoise_set_density(par_bluenoise_context* ctx, const unsigned char* pixels, int size)
 {
     densTexSize = size;
     densTex = (float*) malloc(sqri(size) * sizeof(float));
@@ -237,4 +282,8 @@ void par_bluenoise_set_density(const unsigned char* pixels, int size)
     for (int i = 0; i < sqri(size); i++) {
         densTex[i] = 1 - pixels[i] * scale;
 	}
+}
+
+void par_bluenoise_free(par_bluenoise_context* ctx)
+{
 }
