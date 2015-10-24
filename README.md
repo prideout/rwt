@@ -1,5 +1,5 @@
 
-_Recursive Wang Tiles_ (RWT) can be used to create an infinite, well-distributed, and progressive sequence of point samples.  They were introduced by Kopf's 2006 paper, [Recursive Wang Tiles for Real-Time Blue Noise](http://github.prideout.net/rwt/tileset_2048.dat).
+_Recursive Wang Tiles_ (RWT) can be used to create an infinite, well-distributed, and progressive sequence of point samples.  They were introduced by Kopf's 2006 paper, [Recursive Wang Tiles for Real-Time Blue Noise](http://github.prideout.net/rwt/Kopf2006.pdf).
 
 To build the demo:
 
