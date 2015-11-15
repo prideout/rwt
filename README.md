@@ -12,4 +12,4 @@ This repo makes Kopf's original dataset available via GitHub Pages at the follow
 
 http://github.prideout.net/rwt/bluenoise.bin
 
-The above file is 6 MB and contains 8 tiles with ~2048 points in each tile.
+The above file is 2 MB and contains 8 tiles with ~2048 points in each tile.
