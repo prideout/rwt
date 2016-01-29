@@ -1,6 +1,6 @@
 **If you're looking for the single-file C library that can consume this dataset, it is not actively maintained in this repo**.  Please see:
 
-https://github.com/prideout/parg/blob/master/src/bluenoise.c
+https://github.com/prideout/par/blob/master/par_bluenoise.h
 
 ---
 _Recursive Wang Tiles_ (RWT) can be used to create an infinite, well-distributed, and progressive sequence of point samples.  They were introduced by Kopf's 2006 paper, [Recursive Wang Tiles for Real-Time Blue Noise](http://github.prideout.net/rwt/Kopf2006.pdf).  Here's my post on the subject:
